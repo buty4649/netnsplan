@@ -41,15 +41,10 @@ var cfg *config.Config
 var ip *iproute2.Iproute2
 
 var rootCmd = &cobra.Command{
-	Use:     "netnsplan",
-	Version: version.Version,
-	Short:   "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:          "netnsplan",
+	Version:      version.Version,
+	Short:        "Easily automate Linux netns networks and configurations via YAML",
+	Long:         "Easily automate Linux netns networks and configurations via YAML",
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		logLevel := slog.LevelInfo

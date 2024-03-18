@@ -24,7 +24,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X version.Version={{.Version}} -X version.Commit={{.Commit}} -X version.Date={{.Date}}
+      - -s -w -X netnsplan/version.Version={{.Version}} -X netnsplan/version.Commit={{.Commit}} -X netnsplan/version.Date={{.Date}}
 
 archives:
   - format: tar.gz

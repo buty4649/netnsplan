@@ -1,0 +1,27 @@
+netns:
+  sample1:
+    ethernets:
+      eth0:
+        addresses:
+          - 192.168.10.1
+      eth1:
+        addresses:
+          - 192.168.20.1
+  sample2:
+    ethernets:
+      eth0:
+        addresses:
+          - 172.16.10.1
+    dummy-devices:
+      eth1:
+        addresses:
+          - 172.16.20.1
+    veth-devices:
+      eth2:
+        addresses:
+          - 172.16.30.1
+        peer:
+          name: eth2-host
+          netns: sample1
+          addresses:
+            - 172.16.30.2

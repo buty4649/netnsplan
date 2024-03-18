@@ -22,6 +22,7 @@ SOFTWARE.
 package cmd
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -42,7 +43,6 @@ var ip *iproute2.Iproute2
 
 var rootCmd = &cobra.Command{
 	Use:          "netnsplan",
-	Version:      version.Version,
 	Short:        "Easily automate Linux netns networks and configurations via YAML",
 	Long:         "Easily automate Linux netns networks and configurations via YAML",
 	SilenceUsage: true,
@@ -69,6 +69,12 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	if version.Version != "dev" {
+		rootCmd.Version = fmt.Sprintf("v%s", version.Version)
+	} else {
+		rootCmd.Version = version.Version
+	}
+
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)

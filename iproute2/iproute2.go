@@ -22,85 +22,35 @@ SOFTWARE.
 package iproute2
 
 import (
-	"bytes"
 	"fmt"
 	"log/slog"
-	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 )
 
-type Iproute2 struct {
-	path     string
-	netns    string
-	useNetns bool
-}
-
-type Error struct {
-	ExitStatus int
-	Message    string
-}
-
 var logger *slog.Logger
-
-func New(path string) *Iproute2 {
-	return &Iproute2{
-		path:     path,
-		netns:    "",
-		useNetns: false,
-	}
-}
 
 func SetLogger(l *slog.Logger) {
 	logger = l
 }
 
-func (i *Iproute2) AddLink(name string, linkType string, options ...string) error {
-	args := []string{"link", "add", "name", name, "type", linkType}
-	args = append(args, options...)
-	return i.execute(args...)
+type IpCmd struct {
+	BaseCommand
 }
 
-func (i *Iproute2) DelLink(name string) error {
-	return i.execute("link", "del", "name", name)
+func New(path string) *IpCmd {
+	return &IpCmd{
+		BaseCommand: BaseCommand{path: path},
+	}
 }
 
-func (i *Iproute2) AddDummyDevice(name string) error {
-	return i.AddLink(name, "dummy")
-}
-
-func (i *Iproute2) AddVethDevice(name string, peerName string) error {
-	return i.AddLink(name, "veth", "peer", "name", peerName)
-}
-
-func (i *Iproute2) SetLinkUp(name string) error {
-	return i.execute("link", "set", "dev", name, "up")
-}
-
-func (i *Iproute2) AddAddress(name string, address string) error {
-	return i.execute("address", "add", address, "dev", name)
-}
-
-func (i *Iproute2) DelAddress(name string, address string) error {
-	return i.execute("address", "del", address, "dev", name)
-}
-
-func (i *Iproute2) AddRoute(name string, to string, via string) error {
-	return i.execute("route", "add", to, "via", via, "dev", name)
-}
-
-func (i *Iproute2) DelRoute(name string, to string, via string) error {
-	return i.execute("route", "del", to, "via", via, "dev", name)
-}
-
-func (i *Iproute2) AddNetns(name string) error {
+func (i *IpCmd) AddNetns(name string) error {
 	return i.execute("netns", "add", name)
 }
 
-func (i *Iproute2) DelNetns(name string) error {
-	pids, err := i.NetnsPid(name)
+func (i *IpCmd) DelNetns(name string) error {
+	pids, err := i.ListNetnsProcesses(name)
 	if err != nil {
 		return err
 	}
@@ -116,8 +66,8 @@ func (i *Iproute2) DelNetns(name string) error {
 	return i.execute("netns", "del", name)
 }
 
-func (i *Iproute2) ListNetns() []string {
-	data, _ := i.executeWithStdout("netns", "list")
+func (i *IpCmd) ListNetns() []string {
+	data, _ := i.executeWithOutput("netns", "list")
 
 	var netns []string
 	for _, line := range strings.Split(data, "\n") {
@@ -128,30 +78,12 @@ func (i *Iproute2) ListNetns() []string {
 	return netns
 }
 
-func (i *Iproute2) SetNetns(name string, netns string) error {
+func (i *IpCmd) SetNetns(name string, netns string) error {
 	return i.execute("link", "set", name, "netns", netns)
 }
 
-func (i *Iproute2) IntoNetns(netns string, fn func() error) error {
-	i.netns = netns
-	i.useNetns = true
-
-	err := fn()
-
-	i.netns = ""
-	i.useNetns = false
-	return err
-}
-
-func (i *Iproute2) Netns() string {
-	if i.useNetns {
-		return i.netns
-	}
-	return ""
-}
-
-func (i *Iproute2) NetnsPid(netns string) ([]int, error) {
-	out, err := i.executeWithStdout("netns", "pids", netns)
+func (i *IpCmd) ListNetnsProcesses(netns string) ([]int, error) {
+	out, err := i.executeWithOutput("netns", "pids", netns)
 	if err != nil {
 		return nil, err
 	}
@@ -172,47 +104,38 @@ func (i *Iproute2) NetnsPid(netns string) ([]int, error) {
 	return pids, nil
 }
 
-func (i *Iproute2) NetnsExists(name string) bool {
+func (i *IpCmd) ExistsNetns(name string) bool {
 	return slices.Contains(i.ListNetns(), name)
 }
 
-func (e *Error) Error() string {
-	msg := strings.TrimRight(e.Message, "\n")
-	return fmt.Sprintf("%s (exit status: %d)", msg, e.ExitStatus)
+func (i *IpCmd) IntoNetns(netns string) *IpCmdWithNetns {
+	if netns == "" {
+		return nil
+	}
+
+	ip := IpCmdWithNetns{
+		netns: netns,
+		BaseCommand: BaseCommand{
+			path:        i.path,
+			prependArgs: []string{"netns", "exec", netns, i.path},
+		},
+	}
+	return &ip
 }
 
-func (i *Iproute2) execute(args ...string) error {
-	_, err := i.executeWithStdout(args...)
-	return err
+type IpCmdWithNetns struct {
+	netns string
+	BaseCommand
 }
 
-func (i *Iproute2) executeWithStdout(args ...string) (string, error) {
-	var cmdArgs []string
+func (i *IpCmdWithNetns) InNetns() bool {
+	return true
+}
 
-	if i.useNetns {
-		cmdArgs = append(cmdArgs, "netns", "exec", i.netns)
-		cmdArgs = append(cmdArgs, i.path)
-	}
-	cmdArgs = append(cmdArgs, args...)
+func (i *IpCmdWithNetns) Netns() string {
+	return i.netns
+}
 
-	if logger != nil {
-		logger.Debug("exec command", "path", i.path, "args", strings.Join(cmdArgs, " "))
-	}
-
-	cmd := exec.Command(i.path, cmdArgs...)
-	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-	err := cmd.Run()
-
-	if err != nil {
-		exitErr, _ := err.(*exec.ExitError)
-		status, _ := exitErr.Sys().(syscall.WaitStatus)
-		return "", &Error{
-			ExitStatus: status.ExitStatus(),
-			Message:    stderrBuf.String(),
-		}
-	}
-
-	return stdoutBuf.String(), nil
+func (i *IpCmdWithNetns) ExecuteCommand(args ...string) (string, error) {
+	return i.executeWithOutput(args...)
 }

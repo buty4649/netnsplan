@@ -43,7 +43,7 @@ type Flags struct {
 var flags Flags
 
 var cfg *config.Config
-var ip *iproute2.Iproute2
+var ip *iproute2.IpCmd
 
 var rootCmd = &cobra.Command{
 	Use:          "netnsplan",

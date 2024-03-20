@@ -30,14 +30,15 @@ import (
 
 // applyCmd represents the apply command
 var applyCmd = &cobra.Command{
-	Use:   "apply",
-	Short: "Apply netns networks configuration to running system",
-	Long:  "Apply netns networks configuration to running system",
+	Use:     "apply",
+	Short:   "Apply netns networks configuration to running system",
+	Long:    "Apply netns networks configuration to running system",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		for netns, values := range cfg.Netns {
 			if ip.NetnsExists(netns) {
 				slog.Warn("netns is already exists", "name", netns)
 			} else {
+				slog.Info("create netns", "name", netns)
 				err := ip.AddNetns(netns)
 				if err != nil {
 					return err

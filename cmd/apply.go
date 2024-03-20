@@ -107,6 +107,7 @@ func SetupLoopback(netns string) error {
 
 func SetupEthernets(netns string, ethernets map[string]config.Ethernet) error {
 	for name, values := range ethernets {
+		slog.Info("set netns", "name", name, "netns", netns)
 		err := ip.SetNetns(name, netns)
 		if err != nil {
 			return err

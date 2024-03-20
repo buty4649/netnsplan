@@ -27,6 +27,7 @@ import (
 	"log/slog"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -93,6 +94,19 @@ func (i *Iproute2) AddNetns(name string) error {
 }
 
 func (i *Iproute2) DelNetns(name string) error {
+	pids, err := i.NetnsPid(name)
+	if err != nil {
+		return err
+	}
+
+	if len(pids) > 0 {
+		var pidStrs []string
+		for _, pid := range pids {
+			pidStrs = append(pidStrs, strconv.Itoa(pid))
+		}
+		return fmt.Errorf("netns %s has running processes: %s", name, strings.Join(pidStrs, ", "))
+	}
+
 	return i.execute("netns", "del", name)
 }
 
@@ -128,6 +142,28 @@ func (i *Iproute2) Netns() string {
 		return i.netns
 	}
 	return ""
+}
+
+func (i *Iproute2) NetnsPid(netns string) ([]int, error) {
+	out, err := i.executeWithStdout("netns", "pids", netns)
+	if err != nil {
+		return nil, err
+	}
+
+	var pids []int
+	for _, line := range strings.Split(out, "\n") {
+		if line == "" {
+			continue
+		}
+
+		pid, err := strconv.Atoi(line)
+		if err != nil {
+			return nil, err
+		}
+		pids = append(pids, pid)
+	}
+
+	return pids, nil
 }
 
 func (i *Iproute2) NetnsExists(name string) bool {

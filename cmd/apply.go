@@ -64,6 +64,11 @@ var applyCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
+
+			err = RunPostScript(netns, values.PostScript)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	},
@@ -205,4 +210,20 @@ func SetupVethDevices(netns string, devices map[string]config.VethDevice) error 
 
 func init() {
 	rootCmd.AddCommand(applyCmd)
+}
+
+func RunPostScript(netns string, script string) error {
+	if script == "" {
+		return nil
+	}
+
+	n := ip.IntoNetns(netns)
+	slog.Info("run post script", "netns", netns, "script", script)
+	out, err := n.ExecuteCommand(script)
+	if err != nil {
+		return err
+	}
+	slog.Debug("post script output", "netns", netns, "script", script, "output", out)
+
+	return nil
 }

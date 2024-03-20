@@ -70,6 +70,11 @@ var applyCmd = &cobra.Command{
 }
 
 func SetupDevice(name string, addresses []string) error {
+	err := SetLinkUp(name)
+	if err != nil {
+		return err
+	}
+
 	slog.Info("add addresses", "name", name, "addresses", addresses)
 
 	for _, address := range addresses {
@@ -78,12 +83,11 @@ func SetupDevice(name string, addresses []string) error {
 			return err
 		}
 	}
-
-	return SetLinkUp(name)
+	return nil
 }
 
 func SetLinkUp(name string) error {
-	slog.Info("link up", "name", "lo", "netns", ip.Netns())
+	slog.Info("link up", "name", name, "netns", ip.Netns())
 
 	return ip.SetLinkUp(name)
 }
@@ -148,11 +152,7 @@ func SetupVethDevices(netns string, devices map[string]config.VethDeviceConfig) 
 				return err
 			}
 			ip.IntoNetns(netns, func() error {
-				err = SetupDevice(peerName, values.Peer.Addresses)
-				if err != nil {
-					return err
-				}
-				return nil
+				return SetupDevice(peerName, values.Peer.Addresses)
 			})
 		} else {
 			SetupDevice(peerName, values.Peer.Addresses)

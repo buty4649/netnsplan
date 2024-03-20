@@ -23,20 +23,72 @@ package iproute2
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"os/exec"
+	"strings"
+	"syscall"
 )
 
-type ipCmdRunner interface {
-	cmdPath() string
-	runIpCommand(args ...string) (string, error)
-}
-
 type BaseCommand struct {
-	runner ipCmdRunner
+	path    string
+	prepend []string
 }
 
 func (b *BaseCommand) run(args ...string) error {
-	_, err := b.runner.runIpCommand(args...)
+	_, err := b.runIpCommand(args...)
 	return err
+}
+
+func (b *BaseCommand) runIpCommand(args ...string) (string, error) {
+	cmd := append([]string{b.path}, args...)
+	return b.runCommand(cmd, nil)
+}
+
+type Error struct {
+	ExitStatus int
+	Message    string
+}
+
+func (e *Error) Error() string {
+	msg := strings.TrimRight(e.Message, "\n")
+	return fmt.Sprintf("%s (exit status: %d)", msg, e.ExitStatus)
+}
+
+func (b *BaseCommand) runCommand(cmd []string, input *string) (string, error) {
+	if b.prepend != nil {
+		cmd = append(b.prepend, cmd...)
+	}
+	path := cmd[0]
+	args := cmd[1:]
+
+	if logger != nil {
+		logger.Debug("exec", "cmd", path, "args", args)
+	}
+
+	c := exec.Command(path, args...)
+	if input != nil {
+		stdin, err := c.StdinPipe()
+		if err != nil {
+			return "", err
+		}
+		go func() {
+			defer stdin.Close()
+			io.WriteString(stdin, *input)
+		}()
+	}
+
+	stdout, err := c.Output()
+	if err != nil {
+		exitErr, _ := err.(*exec.ExitError)
+		status, _ := exitErr.Sys().(syscall.WaitStatus)
+		stderr := string(exitErr.Stderr)
+		return "", &Error{
+			ExitStatus: status.ExitStatus(),
+			Message:    stderr,
+		}
+	}
+	return string(stdout), nil
 }
 
 func (b *BaseCommand) AddLink(name string, linkType string, options ...string) error {
@@ -112,7 +164,7 @@ type InterfaceInfo struct {
 type Addresses []InterfaceInfo
 
 func (b *BaseCommand) ListAddresses() (*Addresses, error) {
-	data, err := b.runner.runIpCommand("-json", "address", "show")
+	data, err := b.runIpCommand("-json", "address", "show")
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +196,7 @@ type Link struct {
 type Links []Link
 
 func (b *BaseCommand) ListLinks() (*Links, error) {
-	data, err := b.runner.runIpCommand("-json", "link", "show")
+	data, err := b.runIpCommand("-json", "link", "show")
 	if err != nil {
 		return nil, err
 	}

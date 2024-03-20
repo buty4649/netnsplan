@@ -123,6 +123,13 @@ func (i *Iproute2) IntoNetns(netns string, fn func() error) error {
 	return err
 }
 
+func (i *Iproute2) Netns() string {
+	if i.useNetns {
+		return i.netns
+	}
+	return ""
+}
+
 func (i *Iproute2) NetnsExists(name string) bool {
 	return slices.Contains(i.ListNetns(), name)
 }

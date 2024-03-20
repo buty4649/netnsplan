@@ -38,6 +38,7 @@ var applyCmd = &cobra.Command{
 			if ip.NetnsExists(netns) {
 				slog.Warn("netns is already exists", "name", netns)
 			} else {
+				slog.Info("create netns", "name", netns)
 				err := ip.AddNetns(netns)
 				if err != nil {
 					return err
@@ -69,24 +70,31 @@ var applyCmd = &cobra.Command{
 }
 
 func SetupDevice(name string, addresses []string) error {
+	err := SetLinkUp(name)
+	if err != nil {
+		return err
+	}
+
+	slog.Info("add addresses", "name", name, "addresses", addresses)
+
 	for _, address := range addresses {
 		err := ip.AddAddress(name, address)
 		if err != nil {
 			return err
 		}
 	}
-
-	err := ip.SetLinkUp(name)
-	if err != nil {
-		return err
-	}
-
 	return nil
+}
+
+func SetLinkUp(name string) error {
+	slog.Info("link up", "name", name, "netns", ip.Netns())
+
+	return ip.SetLinkUp(name)
 }
 
 func SetupLoopback(netns string) error {
 	return ip.IntoNetns(netns, func() error {
-		return ip.SetLinkUp("lo")
+		return SetLinkUp("lo")
 	})
 }
 
@@ -107,6 +115,7 @@ func SetupEthernets(netns string, ethernets map[string]config.EthernetConfig) er
 func SetupDummyDevices(netns string, devices map[string]config.EthernetConfig) error {
 	for name, values := range devices {
 		ip.IntoNetns(netns, func() error {
+			slog.Info("add dummy device", "name", name, "netns", netns)
 			err := ip.AddDummyDevice(name)
 			if err != nil {
 				return err
@@ -123,6 +132,7 @@ func SetupVethDevices(netns string, devices map[string]config.VethDeviceConfig) 
 		peerName := values.Peer.Name
 		peerNetns := values.Peer.Netns
 
+		slog.Info("add veth device", "name", name, "netns", netns, "peer name", peerName, "peer netns", peerNetns)
 		err := ip.AddVethDevice(name, peerName)
 		if err != nil {
 			return err
@@ -142,11 +152,7 @@ func SetupVethDevices(netns string, devices map[string]config.VethDeviceConfig) 
 				return err
 			}
 			ip.IntoNetns(netns, func() error {
-				err = SetupDevice(peerName, values.Peer.Addresses)
-				if err != nil {
-					return err
-				}
-				return nil
+				return SetupDevice(peerName, values.Peer.Addresses)
 			})
 		} else {
 			SetupDevice(peerName, values.Peer.Addresses)

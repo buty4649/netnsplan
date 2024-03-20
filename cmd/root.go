@@ -34,9 +34,13 @@ import (
 	"gitlab.com/greyxor/slogor"
 )
 
-var cfgFilePath string
-var ipCmdPath string
-var debug bool
+type Flags struct {
+	ConfigPath   string
+	IpCmdPath    string
+	Debug, Quiet bool
+}
+
+var flags Flags
 
 var cfg *config.Config
 var ip *iproute2.Iproute2
@@ -47,9 +51,17 @@ var rootCmd = &cobra.Command{
 	Long:         "Easily automate Linux netns networks and configurations via YAML",
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		logLevel := slog.LevelInfo
-		if debug {
+		err := cmd.ValidateFlagGroups()
+		if err != nil {
+			return err
+		}
+
+		var logLevel slog.Level
+		if flags.Debug {
 			logLevel = slog.LevelDebug
+		}
+		if flags.Quiet {
+			logLevel = slog.LevelError
 		}
 		slog.SetDefault(slog.New(slogor.NewHandler(os.Stdout, slogor.Options{
 			TimeFormat: "",
@@ -57,13 +69,12 @@ var rootCmd = &cobra.Command{
 			ShowSource: false,
 		})))
 
-		var err error
-		cfg, err = config.LoadConfig(cfgFilePath)
+		cfg, err = config.LoadConfig(flags.ConfigPath)
 		if err != nil {
 			return err
 		}
 
-		ip = iproute2.New(ipCmdPath)
+		ip = iproute2.New(flags.IpCmdPath)
 		return nil
 	},
 }
@@ -82,7 +93,10 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFilePath, "config", "./netnsplan.yaml", "config file")
-	rootCmd.PersistentFlags().StringVar(&ipCmdPath, "cmd", "/bin/ip", "ip command path")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "debug mode")
+	rootCmd.PersistentFlags().StringVar(&flags.ConfigPath, "config", "./netnsplan.yaml", "config file")
+	rootCmd.PersistentFlags().StringVar(&flags.IpCmdPath, "cmd", "/bin/ip", "ip command path")
+
+	rootCmd.PersistentFlags().BoolVar(&flags.Debug, "debug", false, "debug mode")
+	rootCmd.PersistentFlags().BoolVarP(&flags.Quiet, "quiet", "q", false, "debug mode")
+	rootCmd.MarkFlagsMutuallyExclusive("debug", "quiet")
 }

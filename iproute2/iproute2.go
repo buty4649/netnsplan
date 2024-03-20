@@ -71,8 +71,8 @@ func (i *Iproute2) AddDummyDevice(name string) error {
 	return i.AddLink(name, "dummy")
 }
 
-func (i *Iproute2) AddVethDevice(name1 string, name2 string) error {
-	return i.AddLink(name1, "veth", "peer", "name", name2)
+func (i *Iproute2) AddVethDevice(name string, peerName string) error {
+	return i.AddLink(name, "veth", "peer", "name", peerName)
 }
 
 func (i *Iproute2) SetLinkUp(name string) error {
@@ -87,12 +87,12 @@ func (i *Iproute2) DelAddress(name string, address string) error {
 	return i.execute("address", "del", address, "dev", name)
 }
 
-func (i *Iproute2) AddRoute(dst string, via string, dev string) error {
-	return i.execute("route", "add", dst, "via", via, "dev", dev)
+func (i *Iproute2) AddRoute(name string, to string, via string) error {
+	return i.execute("route", "add", to, "via", via, "dev", name)
 }
 
-func (i *Iproute2) DelRoute(dst string, via string, dev string) error {
-	return i.execute("route", "del", dst, "via", via, "dev", dev)
+func (i *Iproute2) DelRoute(name string, to string, via string) error {
+	return i.execute("route", "del", to, "via", via, "dev", name)
 }
 
 func (i *Iproute2) AddNetns(name string) error {

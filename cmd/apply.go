@@ -69,16 +69,23 @@ var applyCmd = &cobra.Command{
 	},
 }
 
-func SetupDevice(name string, addresses []string) error {
+func SetupDevice(name string, addresses []string, routes []config.Route) error {
 	err := SetLinkUp(name)
 	if err != nil {
 		return err
 	}
 
 	slog.Info("add addresses", "name", name, "addresses", addresses)
-
 	for _, address := range addresses {
 		err := ip.AddAddress(name, address)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, route := range routes {
+		slog.Info("add route", "name", name, "to", route.To, "via", route.Via)
+		err := ip.AddRoute(route.To, route.Via, name)
 		if err != nil {
 			return err
 		}
@@ -98,7 +105,7 @@ func SetupLoopback(netns string) error {
 	})
 }
 
-func SetupEthernets(netns string, ethernets map[string]config.EthernetConfig) error {
+func SetupEthernets(netns string, ethernets map[string]config.Ethernet) error {
 	for name, values := range ethernets {
 		err := ip.SetNetns(name, netns)
 		if err != nil {
@@ -106,13 +113,13 @@ func SetupEthernets(netns string, ethernets map[string]config.EthernetConfig) er
 		}
 
 		ip.IntoNetns(netns, func() error {
-			return SetupDevice(name, values.Addresses)
+			return SetupDevice(name, values.Addresses, values.Routes)
 		})
 	}
 	return nil
 }
 
-func SetupDummyDevices(netns string, devices map[string]config.EthernetConfig) error {
+func SetupDummyDevices(netns string, devices map[string]config.Ethernet) error {
 	for name, values := range devices {
 		ip.IntoNetns(netns, func() error {
 			slog.Info("add dummy device", "name", name, "netns", netns)
@@ -121,13 +128,13 @@ func SetupDummyDevices(netns string, devices map[string]config.EthernetConfig) e
 				return err
 			}
 
-			return SetupDevice(name, values.Addresses)
+			return SetupDevice(name, values.Addresses, values.Routes)
 		})
 	}
 	return nil
 }
 
-func SetupVethDevices(netns string, devices map[string]config.VethDeviceConfig) error {
+func SetupVethDevices(netns string, devices map[string]config.VethDevice) error {
 	for name, values := range devices {
 		peerName := values.Peer.Name
 		peerNetns := values.Peer.Netns
@@ -143,7 +150,7 @@ func SetupVethDevices(netns string, devices map[string]config.VethDeviceConfig) 
 			return err
 		}
 		ip.IntoNetns(netns, func() error {
-			return SetupDevice(name, values.Addresses)
+			return SetupDevice(name, values.Addresses, values.Routes)
 		})
 
 		if peerNetns != "" {
@@ -152,10 +159,10 @@ func SetupVethDevices(netns string, devices map[string]config.VethDeviceConfig) 
 				return err
 			}
 			ip.IntoNetns(netns, func() error {
-				return SetupDevice(peerName, values.Peer.Addresses)
+				return SetupDevice(peerName, values.Peer.Addresses, values.Peer.Routes)
 			})
 		} else {
-			SetupDevice(peerName, values.Peer.Addresses)
+			SetupDevice(peerName, values.Peer.Addresses, values.Peer.Routes)
 		}
 	}
 	return nil

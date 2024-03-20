@@ -28,28 +28,36 @@ import (
 )
 
 type Config struct {
-	Netns map[string]NetnsConfig `yaml:"netns"`
+	Netns map[string]Netns `yaml:"netns"`
 }
 
-type NetnsConfig struct {
-	Ethernets    map[string]EthernetConfig   `yaml:"ethernets,omitempty"`
-	DummyDevices map[string]EthernetConfig   `yaml:"dummy-devices,omitempty"`
-	VethDevices  map[string]VethDeviceConfig `yaml:"veth-devices,omitempty"`
+type Netns struct {
+	Ethernets    map[string]Ethernet   `yaml:"ethernets,omitempty"`
+	DummyDevices map[string]Ethernet   `yaml:"dummy-devices,omitempty"`
+	VethDevices  map[string]VethDevice `yaml:"veth-devices,omitempty"`
 }
 
-type EthernetConfig struct {
+type Ethernet struct {
 	Addresses []string `yaml:"addresses"`
+	Routes    []Route  `yaml:"routes,omitempty"`
 }
 
-type VethDeviceConfig struct {
-	Addresses []string   `yaml:"addresses"`
-	Peer      PeerConfig `yaml:"peer"`
+type VethDevice struct {
+	Addresses []string `yaml:"addresses"`
+	Routes    []Route  `yaml:"routes,omitempty"`
+	Peer      Peer     `yaml:"peer"`
 }
 
-type PeerConfig struct {
+type Peer struct {
 	Name      string   `yaml:"name"`
 	Netns     string   `yaml:"netns,omitempty"`
 	Addresses []string `yaml:"addresses"`
+	Routes    []Route  `yaml:"routes,omitempty"`
+}
+
+type Route struct {
+	To  string `yaml:"to"`
+	Via string `yaml:"via"`
 }
 
 func LoadConfig(path string) (*Config, error) {

@@ -93,7 +93,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&flags.ConfigPath, "config", "./netnsplan.yaml", "config file")
+	rootCmd.PersistentFlags().StringVarP(&flags.ConfigPath, "config", "c", "./netnsplan.yaml", "config file")
 	rootCmd.PersistentFlags().StringVar(&flags.IpCmdPath, "cmd", "/bin/ip", "ip command path")
 
 	rootCmd.PersistentFlags().BoolVar(&flags.Debug, "debug", false, "debug mode")

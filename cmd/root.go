@@ -63,11 +63,12 @@ var rootCmd = &cobra.Command{
 		if flags.Quiet {
 			logLevel = slog.LevelError
 		}
-		slog.SetDefault(slog.New(slogor.NewHandler(os.Stdout, slogor.Options{
+		logger := slog.New(slogor.NewHandler(os.Stdout, slogor.Options{
 			TimeFormat: "",
 			Level:      logLevel,
 			ShowSource: false,
-		})))
+		}))
+		slog.SetDefault(logger)
 
 		cfg, err = config.LoadConfig(flags.ConfigPath)
 		if err != nil {
@@ -75,6 +76,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		ip = iproute2.New(flags.IpCmdPath)
+		iproute2.SetLogger(logger)
 		return nil
 	},
 }

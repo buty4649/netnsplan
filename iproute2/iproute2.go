@@ -43,12 +43,18 @@ type Error struct {
 	Message    string
 }
 
+var logger *slog.Logger
+
 func New(path string) *Iproute2 {
 	return &Iproute2{
 		path:     path,
 		netns:    "",
 		useNetns: false,
 	}
+}
+
+func SetLogger(l *slog.Logger) {
+	logger = l
 }
 
 func (i *Iproute2) AddLink(name string, linkType string, options ...string) error {
@@ -189,7 +195,9 @@ func (i *Iproute2) executeWithStdout(args ...string) (string, error) {
 	}
 	cmdArgs = append(cmdArgs, args...)
 
-	slog.Debug(fmt.Sprintf("exec: %s %s", i.path, strings.Join(cmdArgs, " ")))
+	if logger != nil {
+		logger.Debug("exec command", "path", i.path, "args", strings.Join(cmdArgs, " "))
+	}
 
 	cmd := exec.Command(i.path, cmdArgs...)
 	var stdoutBuf, stderrBuf bytes.Buffer

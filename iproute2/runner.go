@@ -33,6 +33,10 @@ type ipCmd struct {
 	path string
 }
 
+func (i *ipCmd) cmdPath() string {
+	return i.path
+}
+
 func (i *ipCmd) runIpCommand(args ...string) (string, error) {
 	cmd := exec.Command(i.path, args...)
 	return runCommand(cmd)
@@ -41,6 +45,10 @@ func (i *ipCmd) runIpCommand(args ...string) (string, error) {
 type ipCmdWithNetns struct {
 	path  string
 	netns string
+}
+
+func (i *ipCmdWithNetns) cmdPath() string {
+	return i.path
 }
 
 func (i *ipCmdWithNetns) runIpCommand(args ...string) (string, error) {

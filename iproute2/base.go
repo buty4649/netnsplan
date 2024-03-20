@@ -26,6 +26,7 @@ import (
 )
 
 type ipCmdRunner interface {
+	cmdPath() string
 	runIpCommand(args ...string) (string, error)
 }
 

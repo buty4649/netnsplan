@@ -117,7 +117,7 @@ func (i *IpCmd) IntoNetns(netns string) *IpCmdWithNetns {
 		netns: netns,
 		BaseCommand: BaseCommand{
 			runner: &ipCmdWithNetns{
-				path:  i.runner.(*ipCmd).path,
+				path:  i.runner.cmdPath(),
 				netns: netns,
 			},
 		},

@@ -35,6 +35,7 @@ type Netns struct {
 	Ethernets    map[string]Ethernet   `yaml:"ethernets,omitempty"`
 	DummyDevices map[string]Ethernet   `yaml:"dummy-devices,omitempty"`
 	VethDevices  map[string]VethDevice `yaml:"veth-devices,omitempty"`
+	PostScript   string                `yaml:"post-script,omitempty"`
 }
 
 type Ethernet struct {

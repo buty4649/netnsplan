@@ -23,6 +23,7 @@ package iproute2
 
 import (
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -33,7 +34,8 @@ type ipCmd struct {
 }
 
 func (i *ipCmd) runIpCommand(args ...string) (string, error) {
-	return runCommand(i.path, args...)
+	cmd := exec.Command(i.path, args...)
+	return runCommand(cmd)
 }
 
 type ipCmdWithNetns struct {
@@ -43,12 +45,25 @@ type ipCmdWithNetns struct {
 
 func (i *ipCmdWithNetns) runIpCommand(args ...string) (string, error) {
 	cmd := append([]string{i.path}, args...)
-	return i.runWithNetns(cmd...)
+	return i.runWithNetns(cmd, nil)
 }
 
-func (i *ipCmdWithNetns) runWithNetns(cmd ...string) (string, error) {
+func (i *ipCmdWithNetns) runWithNetns(cmd []string, input *string) (string, error) {
 	cmdArgs := append([]string{"netns", "exec", i.netns}, cmd...)
-	return runCommand(i.path, cmdArgs...)
+
+	c := exec.Command(i.path, cmdArgs...)
+	if input != nil {
+		stdin, err := c.StdinPipe()
+		if err != nil {
+			return "", err
+		}
+		go func() {
+			defer stdin.Close()
+			io.WriteString(stdin, *input)
+		}()
+	}
+
+	return runCommand(c)
 }
 
 type Error struct {
@@ -61,12 +76,11 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("%s (exit status: %d)", msg, e.ExitStatus)
 }
 
-func runCommand(path string, args ...string) (string, error) {
+func runCommand(cmd *exec.Cmd) (string, error) {
 	if logger != nil {
-		logger.Debug("exec", "cmd", path, "args", args)
+		logger.Debug("exec", "cmd", cmd.Path, "args", cmd.Args)
 	}
 
-	cmd := exec.Command(path, args...)
 	stdout, err := cmd.Output()
 	if err != nil {
 		exitErr, _ := err.(*exec.ExitError)

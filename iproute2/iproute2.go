@@ -41,12 +41,12 @@ type IpCmd struct {
 
 func New(path string) *IpCmd {
 	return &IpCmd{
-		BaseCommand: BaseCommand{path: path},
+		BaseCommand: BaseCommand{runner: &ipCmd{path: path}},
 	}
 }
 
 func (i *IpCmd) AddNetns(name string) error {
-	return i.execute("netns", "add", name)
+	return i.run("netns", "add", name)
 }
 
 func (i *IpCmd) DelNetns(name string) error {
@@ -63,11 +63,11 @@ func (i *IpCmd) DelNetns(name string) error {
 		return fmt.Errorf("netns %s has running processes: %s", name, strings.Join(pidStrs, ", "))
 	}
 
-	return i.execute("netns", "del", name)
+	return i.run("netns", "del", name)
 }
 
 func (i *IpCmd) ListNetns() []string {
-	data, _ := i.executeWithOutput("netns", "list")
+	data, _ := i.runner.runIpCommand("netns", "list")
 
 	var netns []string
 	for _, line := range strings.Split(data, "\n") {
@@ -79,11 +79,11 @@ func (i *IpCmd) ListNetns() []string {
 }
 
 func (i *IpCmd) SetNetns(name string, netns string) error {
-	return i.execute("link", "set", name, "netns", netns)
+	return i.run("link", "set", name, "netns", netns)
 }
 
 func (i *IpCmd) ListNetnsProcesses(netns string) ([]int, error) {
-	out, err := i.executeWithOutput("netns", "pids", netns)
+	out, err := i.runner.runIpCommand("netns", "pids", netns)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +116,10 @@ func (i *IpCmd) IntoNetns(netns string) *IpCmdWithNetns {
 	ip := IpCmdWithNetns{
 		netns: netns,
 		BaseCommand: BaseCommand{
-			path:        i.path,
-			prependArgs: []string{"netns", "exec", netns, i.path},
+			runner: &ipCmdWithNetns{
+				path:  i.runner.(*ipCmd).path,
+				netns: netns,
+			},
 		},
 	}
 	return &ip
@@ -134,8 +136,4 @@ func (i *IpCmdWithNetns) InNetns() bool {
 
 func (i *IpCmdWithNetns) Netns() string {
 	return i.netns
-}
-
-func (i *IpCmdWithNetns) ExecuteCommand(args ...string) (string, error) {
-	return i.executeWithOutput(args...)
 }

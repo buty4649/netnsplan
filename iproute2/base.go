@@ -23,60 +23,28 @@ package iproute2
 
 import (
 	"encoding/json"
-	"fmt"
-	"os/exec"
-	"strings"
-	"syscall"
 )
 
+type ipCmdRunner interface {
+	runIpCommand(args ...string) (string, error)
+}
+
 type BaseCommand struct {
-	path        string
-	prependArgs []string
+	runner ipCmdRunner
 }
 
-type Error struct {
-	ExitStatus int
-	Message    string
-}
-
-func (b *BaseCommand) execute(args ...string) error {
-	_, err := b.executeWithOutput(args...)
+func (b *BaseCommand) run(args ...string) error {
+	_, err := b.runner.runIpCommand(args...)
 	return err
-}
-
-func (e *Error) Error() string {
-	msg := strings.TrimRight(e.Message, "\n")
-	return fmt.Sprintf("%s (exit status: %d)", msg, e.ExitStatus)
-}
-
-func (b *BaseCommand) executeWithOutput(args ...string) (string, error) {
-	cmdArgs := append(b.prependArgs, args...)
-
-	if logger != nil {
-		logger.Debug("exec", "cmd", b.path, "args", cmdArgs)
-	}
-
-	cmd := exec.Command(b.path, cmdArgs...)
-	stdout, err := cmd.Output()
-	if err != nil {
-		exitErr, _ := err.(*exec.ExitError)
-		status, _ := exitErr.Sys().(syscall.WaitStatus)
-		stderr := string(exitErr.Stderr)
-		return "", &Error{
-			ExitStatus: status.ExitStatus(),
-			Message:    stderr,
-		}
-	}
-	return string(stdout), nil
 }
 
 func (b *BaseCommand) AddLink(name string, linkType string, options ...string) error {
 	args := append([]string{"link", "add", name, "type", linkType}, options...)
-	return b.execute(args...)
+	return b.run(args...)
 }
 
 func (b *BaseCommand) DelLink(name string) error {
-	return b.execute("link", "del", name)
+	return b.run("link", "del", name)
 }
 
 func (b *BaseCommand) AddDummyDevice(name string) error {
@@ -88,23 +56,23 @@ func (b *BaseCommand) AddVethDevice(name string, peerName string) error {
 }
 
 func (b *BaseCommand) SetLinkUp(name string) error {
-	return b.execute("link", "set", "dev", name, "up")
+	return b.run("link", "set", "dev", name, "up")
 }
 
 func (b *BaseCommand) AddAddress(name string, address string) error {
-	return b.execute("address", "add", address, "dev", name)
+	return b.run("address", "add", address, "dev", name)
 }
 
 func (b *BaseCommand) DelAddress(name string, address string) error {
-	return b.execute("address", "del", address, "dev", name)
+	return b.run("address", "del", address, "dev", name)
 }
 
 func (b *BaseCommand) AddRoute(name string, to string, via string) error {
-	return b.execute("route", "add", to, "via", via, "dev", name)
+	return b.run("route", "add", to, "via", via, "dev", name)
 }
 
 func (b *BaseCommand) DelRoute(name string, to string, via string) error {
-	return b.execute("route", "del", to, "via", via, "dev", name)
+	return b.run("route", "del", to, "via", via, "dev", name)
 }
 
 func (i *IpCmd) InNetns() bool {
@@ -143,7 +111,7 @@ type InterfaceInfo struct {
 type Addresses []InterfaceInfo
 
 func (b *BaseCommand) ListAddresses() (*Addresses, error) {
-	data, err := b.executeWithOutput("-json", "address", "show")
+	data, err := b.runner.runIpCommand("-json", "address", "show")
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +143,7 @@ type Link struct {
 type Links []Link
 
 func (b *BaseCommand) ListLinks() (*Links, error) {
-	data, err := b.executeWithOutput("-json", "link", "show")
+	data, err := b.runner.runIpCommand("-json", "link", "show")
 	if err != nil {
 		return nil, err
 	}

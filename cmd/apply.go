@@ -35,7 +35,7 @@ var applyCmd = &cobra.Command{
 	Long:  "Apply netns networks configuration to running system",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		for netns, values := range cfg.Netns {
-			if ip.NetnsExists(netns) {
+			if ip.ExistsNetns(netns) {
 				slog.Warn("netns is already exists", "name", netns)
 			} else {
 				slog.Info("create netns", "name", netns)
@@ -69,13 +69,25 @@ var applyCmd = &cobra.Command{
 	},
 }
 
-func SetupDevice(name string, addresses []string, routes []config.Route) error {
-	err := SetLinkUp(name)
+type IpCommand interface {
+	SetLinkUp(name string) error
+	AddAddress(name, address string) error
+	AddRoute(name, to, via string) error
+	InNetns() bool
+	Netns() string
+}
+
+func SetupDevice(ip IpCommand, name string, addresses []string, routes []config.Route) error {
+	err := SetLinkUp(ip, name)
 	if err != nil {
 		return err
 	}
 
-	slog.Info("add addresses", "name", name, "addresses", addresses)
+	if ip.InNetns() {
+		slog.Info("add addresses", "name", name, "addresses", addresses, "netns", ip.Netns())
+	} else {
+		slog.Info("add addresses", "name", name, "addresses", addresses)
+	}
 	for _, address := range addresses {
 		err := ip.AddAddress(name, address)
 		if err != nil {
@@ -84,8 +96,12 @@ func SetupDevice(name string, addresses []string, routes []config.Route) error {
 	}
 
 	for _, route := range routes {
-		slog.Info("add route", "name", name, "to", route.To, "via", route.Via)
-		err := ip.AddRoute(route.To, route.Via, name)
+		if ip.InNetns() {
+			slog.Info("add route", "name", name, "to", route.To, "via", route.Via, "netns", ip.Netns())
+		} else {
+			slog.Info("add route", "name", name, "to", route.To, "via", route.Via)
+		}
+		err := ip.AddRoute(name, route.To, route.Via)
 		if err != nil {
 			return err
 		}
@@ -93,44 +109,54 @@ func SetupDevice(name string, addresses []string, routes []config.Route) error {
 	return nil
 }
 
-func SetLinkUp(name string) error {
-	slog.Info("link up", "name", name, "netns", ip.Netns())
+func SetLinkUp(ip IpCommand, name string) error {
+	if ip.InNetns() {
+		slog.Info("link up", "name", name, "netns", ip.Netns())
+	} else {
+		slog.Info("link up", "name", name)
+	}
 
 	return ip.SetLinkUp(name)
 }
 
 func SetupLoopback(netns string) error {
-	return ip.IntoNetns(netns, func() error {
-		return SetLinkUp("lo")
-	})
+	return SetLinkUp(ip.IntoNetns(netns), "lo")
+}
+
+func SetNetns(name string, netns string) error {
+	slog.Info("set netns", "name", name, "netns", netns)
+	return ip.SetNetns(name, netns)
 }
 
 func SetupEthernets(netns string, ethernets map[string]config.Ethernet) error {
 	for name, values := range ethernets {
-		slog.Info("set netns", "name", name, "netns", netns)
-		err := ip.SetNetns(name, netns)
+		err := SetNetns(name, netns)
 		if err != nil {
 			return err
 		}
 
-		ip.IntoNetns(netns, func() error {
-			return SetupDevice(name, values.Addresses, values.Routes)
-		})
+		err = SetupDevice(ip.IntoNetns(netns), name, values.Addresses, values.Routes)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func SetupDummyDevices(netns string, devices map[string]config.Ethernet) error {
 	for name, values := range devices {
-		ip.IntoNetns(netns, func() error {
-			slog.Info("add dummy device", "name", name, "netns", netns)
-			err := ip.AddDummyDevice(name)
-			if err != nil {
-				return err
-			}
+		n := ip.IntoNetns(netns)
 
-			return SetupDevice(name, values.Addresses, values.Routes)
-		})
+		slog.Info("add dummy device", "name", name, "netns", netns)
+		err := n.AddDummyDevice(name)
+		if err != nil {
+			return err
+		}
+
+		err = SetupDevice(n, name, values.Addresses, values.Routes)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -140,30 +166,38 @@ func SetupVethDevices(netns string, devices map[string]config.VethDevice) error 
 		peerName := values.Peer.Name
 		peerNetns := values.Peer.Netns
 
-		slog.Info("add veth device", "name", name, "netns", netns, "peer name", peerName, "peer netns", peerNetns)
+		slog.Info("add veth device", "name", name, "peer name", peerName)
 		err := ip.AddVethDevice(name, peerName)
 		if err != nil {
 			return err
 		}
 
-		err = ip.SetNetns(name, netns)
+		err = SetNetns(name, netns)
 		if err != nil {
 			return err
 		}
-		ip.IntoNetns(netns, func() error {
-			return SetupDevice(name, values.Addresses, values.Routes)
-		})
+
+		n := ip.IntoNetns(netns)
+		err = SetupDevice(n, name, values.Addresses, values.Routes)
+		if err != nil {
+			return err
+		}
 
 		if peerNetns != "" {
-			err = ip.SetNetns(peerName, peerNetns)
+			err = SetNetns(peerName, peerNetns)
 			if err != nil {
 				return err
 			}
-			ip.IntoNetns(netns, func() error {
-				return SetupDevice(peerName, values.Peer.Addresses, values.Peer.Routes)
-			})
+			n := ip.IntoNetns(peerNetns)
+			err = SetupDevice(n, peerName, values.Peer.Addresses, values.Peer.Routes)
+			if err != nil {
+				return err
+			}
 		} else {
-			SetupDevice(peerName, values.Peer.Addresses, values.Peer.Routes)
+			err = SetupDevice(ip, peerName, values.Peer.Addresses, values.Peer.Routes)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

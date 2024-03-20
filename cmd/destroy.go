@@ -29,12 +29,12 @@ import (
 
 // destroyCmd represents the destroy command
 var destroyCmd = &cobra.Command{
-	Use:     "destroy",
-	Short:   "Destroy netns networks configuration from running system",
-	Long:    "Destroy netns networks configuration from running system",
+	Use:   "destroy",
+	Short: "Destroy netns networks configuration from running system",
+	Long:  "Destroy netns networks configuration from running system",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		for n := range cfg.Netns {
-			if ip.NetnsExists(n) {
+			if ip.ExistsNetns(n) {
 				slog.Info("delete netns", "name", n)
 				err := ip.DelNetns(n)
 				if err != nil {

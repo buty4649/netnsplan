@@ -36,10 +36,20 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
-    format_overrides:
-      - goos: windows
-        format: zip
+
+nfpms:
+  - homepage: https://github.com/buty4649/netnsplan/
+    maintainer: buty4649 <buty4649@gmail.com>
+    description: Easily automate Linux netns networks and configurations via YAML
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/sbin
+    section: net
+    contents:
+      - src: sample/netnsplan.yaml
+        dst: /etc/netnsplan/netnsplan.yaml
+        type: config
 
 changelog:
   sort: asc

@@ -81,17 +81,16 @@ func (b *BaseCommand) runCommand(cmd []string, input *string) (string, error) {
 		}()
 	}
 
-	stdout, err := c.Output()
+	out, err := c.CombinedOutput()
 	if err != nil {
 		exitErr, _ := err.(*exec.ExitError)
 		status, _ := exitErr.Sys().(syscall.WaitStatus)
-		stderr := string(exitErr.Stderr)
 		return "", &CommandError{
 			ExitStatus: status.ExitStatus(),
-			Msg:        stderr,
+			Msg:        string(out),
 		}
 	}
-	return string(stdout), nil
+	return string(out), nil
 }
 
 func (b *BaseCommand) AddLink(name string, linkType string, options ...string) error {

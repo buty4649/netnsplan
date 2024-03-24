@@ -23,7 +23,6 @@ package iproute2
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os/exec"
 	"strings"
@@ -42,17 +41,21 @@ func (b *BaseCommand) run(args ...string) error {
 
 func (b *BaseCommand) runIpCommand(args ...string) (string, error) {
 	cmd := append([]string{b.path}, args...)
-	return b.runCommand(cmd, nil)
-}
+	out, err := b.runCommand(cmd, nil)
+	if err == nil {
+		return out, nil
+	}
 
-type Error struct {
-	ExitStatus int
-	Message    string
-}
+	msg := err.Error()
+	if strings.Contains(msg, "Operation not permitted") {
+		return "", &OperationNotPermittedError{Msg: msg}
+	}
 
-func (e *Error) Error() string {
-	msg := strings.TrimRight(e.Message, "\n")
-	return fmt.Sprintf("%s (exit status: %d)", msg, e.ExitStatus)
+	if strings.Contains(msg, "does not exist") {
+		return "", &NotExistError{Msg: msg}
+	}
+
+	return "", &UnknownError{Msg: err.Error()}
 }
 
 func (b *BaseCommand) runCommand(cmd []string, input *string) (string, error) {
@@ -83,9 +86,9 @@ func (b *BaseCommand) runCommand(cmd []string, input *string) (string, error) {
 		exitErr, _ := err.(*exec.ExitError)
 		status, _ := exitErr.Sys().(syscall.WaitStatus)
 		stderr := string(exitErr.Stderr)
-		return "", &Error{
+		return "", &CommandError{
 			ExitStatus: status.ExitStatus(),
-			Message:    stderr,
+			Msg:        stderr,
 		}
 	}
 	return string(stdout), nil
@@ -146,13 +149,21 @@ type AddressInfo struct {
 	PreferredLifeTime uint64 `json:"preferred_life_time"`
 }
 
+type OperState string
+
+const (
+	OperStateUp     OperState = "UP"
+	OperStateDown   OperState = "DOWN"
+	OperStateUnkwon OperState = "UNKNOWN"
+)
+
 type InterfaceInfo struct {
 	Ifindex   int           `json:"ifindex"`
 	Ifname    string        `json:"ifname"`
 	Flags     []string      `json:"flags"`
 	Mtu       int           `json:"mtu"`
 	Qdisc     string        `json:"qdisc"`
-	Operstate string        `json:"operstate"`
+	Operstate OperState     `json:"operstate"`
 	Group     string        `json:"group"`
 	Txqlen    int           `json:"txqlen"`
 	LinkType  string        `json:"link_type"`
@@ -161,51 +172,127 @@ type InterfaceInfo struct {
 	AddrInfo  []AddressInfo `json:"addr_info"`
 }
 
-type Addresses []InterfaceInfo
+type Interfaces []InterfaceInfo
 
-func (b *BaseCommand) ListAddresses() (*Addresses, error) {
+func (b *BaseCommand) ListInterfaces() (Interfaces, error) {
 	data, err := b.runIpCommand("-json", "address", "show")
 	if err != nil {
 		return nil, err
 	}
 
-	var addresses Addresses
-	err = json.Unmarshal([]byte(data), &addresses)
+	return unmarshalInterfacesData(data)
+}
+
+func (b *BaseCommand) ShowInterface(name string) (*InterfaceInfo, error) {
+	data, err := b.runIpCommand("-json", "address", "show", "dev", name)
 	if err != nil {
 		return nil, err
 	}
 
-	return &addresses, nil
+	i, err := unmarshalInterfacesData(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &i[0], err
+}
+
+func unmarshalInterfacesData(data string) (Interfaces, error) {
+	var addresses Interfaces
+	err := json.Unmarshal([]byte(data), &addresses)
+	if err != nil {
+		return nil, err
+	}
+
+	return addresses, nil
 }
 
 type Link struct {
-	Ifindex   int      `json:"ifindex"`
-	Ifname    string   `json:"ifname"`
-	Flags     []string `json:"flags"`
-	Mtu       int      `json:"mtu"`
-	Qdisc     string   `json:"qdisc"`
-	Operstate string   `json:"operstate"`
-	Linkmode  string   `json:"linkmode"`
-	Group     string   `json:"group"`
-	Txqlen    int      `json:"txqlen"`
-	LinkType  string   `json:"link_type"`
-	Address   string   `json:"address"`
-	Broadcast string   `json:"broadcast"`
+	Ifindex   int       `json:"ifindex"`
+	Ifname    string    `json:"ifname"`
+	Flags     []string  `json:"flags"`
+	Mtu       int       `json:"mtu"`
+	Qdisc     string    `json:"qdisc"`
+	Operstate OperState `json:"operstate"`
+	Linkmode  string    `json:"linkmode"`
+	Group     string    `json:"group"`
+	Txqlen    int       `json:"txqlen"`
+	LinkType  string    `json:"link_type"`
+	Address   string    `json:"address"`
+	Broadcast string    `json:"broadcast"`
 }
 
 type Links []Link
 
-func (b *BaseCommand) ListLinks() (*Links, error) {
+func (b *BaseCommand) ListLinks() (Links, error) {
 	data, err := b.runIpCommand("-json", "link", "show")
 	if err != nil {
 		return nil, err
 	}
 
-	var links Links
-	err = json.Unmarshal([]byte(data), &links)
+	return unmarshalLinksData(data)
+}
+func (b *BaseCommand) ShowLink(name string) (*Link, error) {
+	data, err := b.runIpCommand("-json", "link", "show", "dev", name)
 	if err != nil {
 		return nil, err
 	}
 
-	return &links, nil
+	links, err := unmarshalLinksData(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &links[0], nil
+}
+
+func unmarshalLinksData(data string) (Links, error) {
+	var links Links
+	err := json.Unmarshal([]byte(data), &links)
+	if err != nil {
+		return nil, err
+	}
+
+	return links, nil
+}
+
+type Route struct {
+	Dst      string   `json:"dst,omitempty"`
+	Gateway  string   `json:"gateway,omitempty"`
+	Dev      string   `json:"dev,omitempty"`
+	Type     string   `json:"type,omitempty"`
+	Protocol string   `json:"protocol,omitempty"`
+	Scope    string   `json:"scope,omitempty"`
+	PrefSrc  string   `json:"prefsrc,omitempty"`
+	Flags    []string `json:"flags,omitempty"`
+}
+
+type Routes []Route
+
+func (b *BaseCommand) ListRoutes() (Routes, error) {
+	data, err := b.runIpCommand("-json", "route", "show")
+	if err != nil {
+		return nil, err
+	}
+
+	return unmarshalRoutesData(data)
+}
+
+func (b *BaseCommand) ShowRoutes(name string) (Routes, error) {
+	data, err := b.runIpCommand("-json", "route", "show", "dev", name)
+	if err != nil {
+		return nil, err
+	}
+
+	return unmarshalRoutesData(data)
+}
+
+func unmarshalRoutesData(data string) (Routes, error) {
+	var routes []Route
+	err := json.Unmarshal([]byte(data), &routes)
+	if err != nil {
+		return nil, err
+	}
+
+	return routes, nil
 }

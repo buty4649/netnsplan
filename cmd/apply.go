@@ -31,15 +31,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// applyCmd represents the apply command
+var alwaysRunPostScript bool
+
 var applyCmd = &cobra.Command{
 	Use:   "apply",
 	Short: "Apply netns networks configuration to running system",
 	Long:  "Apply netns networks configuration to running system",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		for netns, values := range cfg.Netns {
+			needPostScript := true
 			if ip.ExistsNetns(netns) {
 				slog.Warn("netns is already exists", "name", netns)
+				needPostScript = false
 			} else {
 				slog.Info("create netns", "name", netns)
 				err := ip.AddNetns(netns)
@@ -68,13 +71,20 @@ var applyCmd = &cobra.Command{
 				return err
 			}
 
-			err = RunPostScript(netns, values.PostScript)
-			if err != nil {
-				return err
+			if needPostScript || alwaysRunPostScript {
+				err = RunPostScript(netns, values.PostScript)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		return nil
 	},
+}
+
+func init() {
+	rootCmd.AddCommand(applyCmd)
+	applyCmd.Flags().BoolVarP(&alwaysRunPostScript, "always-run-post-script", "R", false, "always run post-script. by default, runs only when a netns is created.")
 }
 
 type IpCommand interface {
@@ -299,10 +309,6 @@ func SetupVethDevices(netns string, devices map[string]config.VethDevice) error 
 		}
 	}
 	return nil
-}
-
-func init() {
-	rootCmd.AddCommand(applyCmd)
 }
 
 func RunPostScript(netns string, script string) error {

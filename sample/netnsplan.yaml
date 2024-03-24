@@ -7,8 +7,8 @@ netns:
         route:
           - to: default
             via: 192.168.20.254
-      post-script: |
-        sysctl --system
+    post-script: |
+      sysctl --system
         iptables-restore /etc/iptables/rules.v4
   sample2:
     ethernets:

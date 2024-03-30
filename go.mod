@@ -3,6 +3,7 @@ module netnsplan
 go 1.22.1
 
 require (
+	github.com/TwiN/deepmerge v0.2.1
 	github.com/spf13/cobra v1.8.0
 	gitlab.com/greyxor/slogor v1.2.6
 	gopkg.in/yaml.v3 v3.0.1

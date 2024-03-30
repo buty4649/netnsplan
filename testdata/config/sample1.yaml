@@ -1,0 +1,37 @@
+netns:
+  sample1:
+    ethernets:
+      eth0:
+        addresses:
+          - 192.168.0.1/24
+          - 2001:db8:beaf:cafe::1/112
+        routes:
+          - to: default
+            via: 192.168.0.254
+      eth1:
+        addresses:
+          - 192.168.1.1/24
+    dummy-devices:
+      dummy0:
+        addresses:
+          - 192.168.10.1/24
+        routes:
+          - to: 192.168.11.0/24
+            via: 192.168.10.254
+    veth-devices:
+      veth0:
+        addresses:
+          - 192.168.20.1/24
+        routes:
+          - to: 192.168.21.0/24
+            via: 192.168.20.254
+        peer:
+          name: veth0-peer
+          netns: sample2
+          addresses:
+            - 192.168.20.2/24
+          routes:
+            - to: 192.168.21.0/24
+              via: 192.168.20.2
+    post-script: |
+      echo 'Hello, World!'

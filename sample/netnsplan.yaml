@@ -9,7 +9,7 @@ netns:
             via: 192.168.20.254
     post-script: |
       sysctl --system
-        iptables-restore /etc/iptables/rules.v4
+      iptables-restore /etc/iptables/rules.v4
   sample2:
     ethernets:
       eth2:

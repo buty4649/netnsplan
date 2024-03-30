@@ -23,7 +23,9 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 
+	"github.com/TwiN/deepmerge"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -61,14 +63,45 @@ type Route struct {
 	Via string `yaml:"via"`
 }
 
-func LoadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+func mergeMaps(dst, src map[string]interface{}) {
+	for key, valueSrc := range src {
+		if valueDst, ok := dst[key]; ok {
+			if mapValueDst, ok := valueDst.(map[string]interface{}); ok {
+				if mapValueSrc, ok := valueSrc.(map[string]interface{}); ok {
+					mergeMaps(mapValueDst, mapValueSrc)
+					continue
+				}
+			}
+		}
+		dst[key] = valueSrc
+	}
+}
+
+func LoadYamlFiles(dirPath string) (*Config, error) {
+	files, err := filepath.Glob(filepath.Join(dirPath, "*.yaml"))
 	if err != nil {
 		return nil, err
 	}
 
+	var mergedYaml []byte
+	for _, file := range files {
+		bytes, err := os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+
+		if mergedYaml == nil {
+			mergedYaml = bytes
+		} else {
+			mergedYaml, err = deepmerge.YAML(mergedYaml, bytes)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	var config Config
-	err = yaml.Unmarshal(data, &config)
+	err = yaml.Unmarshal(mergedYaml, &config)
 	if err != nil {
 		return nil, err
 	}

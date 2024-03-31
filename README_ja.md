@@ -17,9 +17,12 @@
 
 ### 設定ファイルの準備
 
-ネットワーク設定はYAMLファイルによって定義します。以下はその例です：
+ネットワーク設定はYAMLファイルによって定義します。
+netnsplanではデフォルトでは`/etc/netnsplan`配下にあるYAMLファイル(*.yaml)をすべて読み込み、それらをマージした結果を基に適用を行います。
+以下は設定例です。ファイル名は/etc/netnsplan/sample.yamlとしています。
 
 ```yaml
+# /etc/netnsplan/sample.yaml
 netns:
   ns1:
     ethernets:

@@ -17,9 +17,11 @@
 
 ### Preparing the Configuration File
 
-Network settings are defined in a YAML file. Here is an example:
+Network settings are defined by YAML files. By default, netnsplan reads all YAML files (*.yaml) under `/etc/netnsplan`, merges them, and applies the settings based on the merged result.
+Below is an example of the configuration. The file name is set as `/etc/netnsplan/sample.yaml`.
 
 ```yaml
+# /etc/netnsplan/sample.yaml
 netns:
   ns1:
     ethernets:

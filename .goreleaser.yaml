@@ -48,8 +48,8 @@ nfpms:
     bindir: /usr/sbin
     section: net
     contents:
-      - src: sample/netnsplan.yaml
-        dst: /etc/netnsplan/netnsplan.yaml
+      - src: example/netnsplan.yaml
+        dst: /etc/netnsplan/netnsplan.yaml.example
         type: config
 
 changelog:

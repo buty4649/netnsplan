@@ -17,9 +17,11 @@
 
 ### Preparing the Configuration File
 
-Network settings are defined in a YAML file. Here is an example:
+Network settings are defined by YAML files. By default, netnsplan reads all YAML files (*.yaml) under `/etc/netnsplan`, merges them, and applies the settings based on the merged result.
+Below is an example of the configuration. The file name is set as `/etc/netnsplan/example.yaml`.
 
 ```yaml
+# /etc/netnsplan/example.yaml
 netns:
   ns1:
     ethernets:
@@ -48,7 +50,7 @@ In this configuration, two network namespaces, `ns1` and `ns2`, are created, eac
 To apply network namespaces and network settings based on the configuration file, execute the following command:
 
 ```bash
-netnsplan apply -c config.yaml
+netnsplan apply
 ```
 
 ### Deleting Network Namespaces
@@ -56,7 +58,7 @@ netnsplan apply -c config.yaml
 To delete the created network namespaces, execute the following command:
 
 ```bash
-netnsplan destroy -c config.yaml
+netnsplan destroy
 ```
 
 ## Installation

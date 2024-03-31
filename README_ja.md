@@ -17,9 +17,12 @@
 
 ### 設定ファイルの準備
 
-ネットワーク設定はYAMLファイルによって定義します。以下はその例です：
+ネットワーク設定はYAMLファイルによって定義します。
+netnsplanではデフォルトでは`/etc/netnsplan`配下にあるYAMLファイル(*.yaml)をすべて読み込み、それらをマージした結果を基に適用を行います。
+以下は設定例です。ファイル名は/etc/netnsplan/example.yamlとしています。
 
 ```yaml
+# /etc/netnsplan/example.yaml
 netns:
   ns1:
     ethernets:
@@ -48,7 +51,7 @@ netns:
 設定ファイルを元にネットワーク名前空間とネットワーク設定を適用するには、以下のコマンドを実行します：
 
 ```bash
-netnsplan apply -c config.yaml
+netnsplan apply
 ```
 
 ### ネットワーク名前空間の削除
@@ -56,7 +59,7 @@ netnsplan apply -c config.yaml
 作成したネットワーク名前空間を削除するには、以下のコマンドを実行します：
 
 ```bash
-netnsplan destroy -c config.yaml
+netnsplan destroy
 ```
 
 ## インストール

@@ -35,7 +35,7 @@ import (
 )
 
 type Flags struct {
-	ConfigPath   string
+	ConfigDir    string
 	IpCmdPath    string
 	Debug, Quiet bool
 }
@@ -70,7 +70,7 @@ var rootCmd = &cobra.Command{
 		}))
 		slog.SetDefault(logger)
 
-		cfg, err = config.LoadConfig(flags.ConfigPath)
+		cfg, err = config.LoadYamlFiles(flags.ConfigDir)
 		if err != nil {
 			return err
 		}
@@ -95,7 +95,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&flags.ConfigPath, "config", "c", "./netnsplan.yaml", "config file")
+	rootCmd.PersistentFlags().StringVarP(&flags.ConfigDir, "config-dir", "d", "/etc/netnsplan", "config file directory")
 	rootCmd.PersistentFlags().StringVar(&flags.IpCmdPath, "cmd", "/bin/ip", "ip command path")
 
 	rootCmd.PersistentFlags().BoolVar(&flags.Debug, "debug", false, "debug mode")

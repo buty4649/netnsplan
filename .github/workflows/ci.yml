@@ -18,4 +18,4 @@ jobs:
         run: |
           go build -o netnsplan
           ./netnsplan -h
-          ./netnsplan apply -c .github/testdata
+          ./netnsplan apply -d .github/testdata

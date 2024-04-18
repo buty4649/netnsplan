@@ -42,6 +42,15 @@ func (e *OperationNotPermittedError) Error() string {
 	return e.Msg
 }
 
+type UnmarshalError struct {
+	Msg     string
+	Content string
+}
+
+func (e *UnmarshalError) Error() string {
+	return fmt.Sprint(e.Msg, ": ", e.Content)
+}
+
 type UnknownError struct {
 	Msg string
 }

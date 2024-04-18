@@ -214,7 +214,7 @@ func unmarshalInterfacesData(data string) (Interfaces, error) {
 	var addresses Interfaces
 	err := json.Unmarshal([]byte(data), &addresses)
 	if err != nil {
-		return nil, err
+		return nil, &UnmarshalError{Msg: err.Error(), Content: data}
 	}
 
 	return addresses, nil

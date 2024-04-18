@@ -22,8 +22,10 @@ SOFTWARE.
 package iproute2
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -32,6 +34,11 @@ import (
 type BaseCommand struct {
 	path    string
 	prepend []string
+}
+
+type CommandOut struct {
+	Stdout string
+	Stderr string
 }
 
 func (b *BaseCommand) run(args ...string) error {
@@ -43,7 +50,11 @@ func (b *BaseCommand) runIpCommand(args ...string) (string, error) {
 	cmd := append([]string{b.path}, args...)
 	out, err := b.runCommand(cmd, nil)
 	if err == nil {
-		return out, nil
+		if out.Stderr != "" {
+			slog.Warn("ip command warning", "msg", out.Stderr)
+		}
+
+		return out.Stdout, nil
 	}
 
 	msg := err.Error()
@@ -58,7 +69,7 @@ func (b *BaseCommand) runIpCommand(args ...string) (string, error) {
 	return "", &UnknownError{Msg: err.Error()}
 }
 
-func (b *BaseCommand) runCommand(cmd []string, input *string) (string, error) {
+func (b *BaseCommand) runCommand(cmd []string, input *string) (*CommandOut, error) {
 	if b.prepend != nil {
 		cmd = append(b.prepend, cmd...)
 	}
@@ -73,7 +84,7 @@ func (b *BaseCommand) runCommand(cmd []string, input *string) (string, error) {
 	if input != nil {
 		stdin, err := c.StdinPipe()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		go func() {
 			defer stdin.Close()
@@ -81,16 +92,19 @@ func (b *BaseCommand) runCommand(cmd []string, input *string) (string, error) {
 		}()
 	}
 
-	out, err := c.CombinedOutput()
-	if err != nil {
+	var stdout, stderr bytes.Buffer
+	c.Stdout = &stdout
+	c.Stderr = &stderr
+
+	if err := c.Run(); err != nil {
 		exitErr, _ := err.(*exec.ExitError)
 		status, _ := exitErr.Sys().(syscall.WaitStatus)
-		return "", &CommandError{
+		return nil, &CommandError{
 			ExitStatus: status.ExitStatus(),
-			Msg:        string(out),
+			Msg:        stderr.String(),
 		}
 	}
-	return string(out), nil
+	return &CommandOut{Stdout: stdout.String(), Stderr: stderr.String()}, nil
 }
 
 func (b *BaseCommand) AddLink(name string, linkType string, options ...string) error {
@@ -200,7 +214,7 @@ func unmarshalInterfacesData(data string) (Interfaces, error) {
 	var addresses Interfaces
 	err := json.Unmarshal([]byte(data), &addresses)
 	if err != nil {
-		return nil, err
+		return nil, &UnmarshalError{Msg: err.Error(), Content: data}
 	}
 
 	return addresses, nil

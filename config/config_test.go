@@ -35,6 +35,13 @@ func TestLoadYamlFiles(t *testing.T) {
 	expected := &Config{
 		Netns: map[string]Netns{
 			"sample1": {
+				Loopback: Ethernet{
+					Addresses: []string{"127.0.0.53/8"},
+					Routes: []Route{{
+						To:  "10.10.0.0/24",
+						Via: "127.0.0.53",
+					}},
+				},
 				Ethernets: map[string]Ethernet{
 					"eth0": {
 						Addresses: []string{

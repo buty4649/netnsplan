@@ -1,5 +1,11 @@
 netns:
   sample1:
+    loopback:
+      addresses:
+        - 127.0.0.53/8
+      routes:
+        - to: 10.10.0.0/24
+          via: 127.0.0.53
     ethernets:
       eth0:
         addresses:

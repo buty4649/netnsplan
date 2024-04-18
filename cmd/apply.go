@@ -51,7 +51,7 @@ var applyCmd = &cobra.Command{
 				}
 			}
 
-			err := SetupLoopback(netns)
+			err := SetupLoopback(netns, values.Loopback)
 			if err != nil {
 				return err
 			}
@@ -184,8 +184,11 @@ func SetNetns(name string, netns string) error {
 	return ip.SetNetns(name, netns)
 }
 
-func SetupLoopback(netns string) error {
-	return SetLinkUp(ip.IntoNetns(netns), "lo")
+func SetupLoopback(netns string, ethernet config.Ethernet) error {
+	slog.Debug("setup loopback", "netns", netns, "addresses", ethernet.Addresses, "routes", ethernet.Routes)
+
+	n := ip.IntoNetns(netns)
+	return SetupDevice(n, "lo", ethernet.Addresses, ethernet.Routes)
 }
 
 func SetupEthernets(netns string, ethernets map[string]config.Ethernet) error {

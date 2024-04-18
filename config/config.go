@@ -34,6 +34,7 @@ type Config struct {
 }
 
 type Netns struct {
+	Loopback     Ethernet              `yaml:"loopback,omitempty"`
 	Ethernets    map[string]Ethernet   `yaml:"ethernets,omitempty"`
 	DummyDevices map[string]Ethernet   `yaml:"dummy-devices,omitempty"`
 	VethDevices  map[string]VethDevice `yaml:"veth-devices,omitempty"`

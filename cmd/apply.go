@@ -253,7 +253,7 @@ func SetupVethDevices(netns string, devices map[string]config.VethDevice) error 
 		peerNetns := values.Peer.Netns
 
 		slog.Debug("setup veth device", "netns", netns, "name", name, "addresses", values.Addresses, "routes", values.Routes,
-		"peer name", peerName, "peer netns", peerNetns, "peer addresses", values.Peer.Addresses, "peer routes", values.Peer.Routes)
+			"peer name", peerName, "peer netns", peerNetns, "peer addresses", values.Peer.Addresses, "peer routes", values.Peer.Routes)
 
 		// check if device is already exists in netns
 		_, err := n.ShowLink(name)
@@ -332,7 +332,7 @@ func RunPostScript(netns string, script string) error {
 	if err != nil {
 		return err
 	}
-	slog.Debug("post script output", "netns", netns, "script", script, "output", out)
+	slog.Debug("post script output", "netns", netns, "script", script, "stdout", out.Stdout, "stderr", out.Stderr)
 
 	return nil
 }

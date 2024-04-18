@@ -136,7 +136,7 @@ func (i *IpCmdWithNetns) Netns() string {
 	return i.netns
 }
 
-func (i *IpCmdWithNetns) ExecuteCommand(cmd string) (string, error) {
+func (i *IpCmdWithNetns) ExecuteCommand(cmd string) (*CommandOut, error) {
 	shell := []string{"/bin/bash"}
 	return i.runCommand(shell, &cmd)
 }

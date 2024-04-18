@@ -185,7 +185,7 @@ func SetNetns(name string, netns string) error {
 }
 
 func SetupLoopback(netns string, ethernet config.Ethernet) error {
-	slog.Debug("setup loopback", "netns", netns, "addresses", ethernet.Addresses, "routes", ethernet.Routes)
+	slog.Debug("setup loopback device", "netns", netns, "addresses", ethernet.Addresses, "routes", ethernet.Routes)
 
 	n := ip.IntoNetns(netns)
 	return SetupDevice(n, "lo", ethernet.Addresses, ethernet.Routes)
@@ -194,6 +194,8 @@ func SetupLoopback(netns string, ethernet config.Ethernet) error {
 func SetupEthernets(netns string, ethernets map[string]config.Ethernet) error {
 	n := ip.IntoNetns(netns)
 	for name, values := range ethernets {
+		slog.Debug("setup ethernet device", "netns", netns, "name", name, "addresses", values.Addresses, "routes", values.Routes)
+
 		_, err := n.ShowLink(name)
 		if err == nil {
 			slog.Debug("device is already exists in netns", "name", name, "netns", netns)
@@ -219,6 +221,8 @@ func SetupEthernets(netns string, ethernets map[string]config.Ethernet) error {
 func SetupDummyDevices(netns string, devices map[string]config.Ethernet) error {
 	n := ip.IntoNetns(netns)
 	for name, values := range devices {
+		slog.Debug("setup dummy device", "netns", netns, "name", name, "addresses", values.Addresses, "routes", values.Routes)
+
 		_, err := n.ShowLink(name)
 		if err == nil {
 			slog.Debug("device is already exists in netns", "name", name, "netns", netns)
@@ -247,6 +251,9 @@ func SetupVethDevices(netns string, devices map[string]config.VethDevice) error 
 	for name, values := range devices {
 		peerName := values.Peer.Name
 		peerNetns := values.Peer.Netns
+
+		slog.Debug("setup veth device", "netns", netns, "name", name, "addresses", values.Addresses, "routes", values.Routes,
+		"peer name", peerName, "peer netns", peerNetns, "peer addresses", values.Peer.Addresses, "peer routes", values.Peer.Routes)
 
 		// check if device is already exists in netns
 		_, err := n.ShowLink(name)

@@ -14,3 +14,8 @@ jobs:
           go-version-file: ./go.mod
       - run: go fmt ./...
       - run: go test -v ./...
+      - name: Test Run netnsplan
+        run: |
+          go build -o netnsplan
+          ./netnsplan -h
+          ./netnsplan apply -c .github/testdata

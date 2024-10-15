@@ -5,7 +5,7 @@ go 1.22.2
 require (
 	github.com/TwiN/deepmerge v0.2.1
 	github.com/spf13/cobra v1.8.1
-	gitlab.com/greyxor/slogor v1.4.0
+	gitlab.com/greyxor/slogor v1.4.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
